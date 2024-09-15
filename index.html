@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasure Hunter</title>
+    <link rel="icon" type="image/png" href="icon.png"> <!-- Favicon for the game -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Comic Sans MS", sans-serif;
+            background-image: url('bg.gif');
+            background-size: cover;
+            color: white;
+            position: relative; /* Ensures absolute positioning within body */
+        }
+
+        #instructions {
+            font-size: 24px;
+            text-align: center;
+            margin: 20px;
+            padding: 5px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        #dropZone {
+            width: 100%;
+            height: calc(100vh - 100px);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-items: flex-start;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .site-badge {
+            display: inline-block;
+            width: 150px;
+            height: 200px;
+            margin: 20px;
+            position: relative;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid black;
+            border-radius: 5px;
+            transition: opacity 0.5s ease; /* For fade-out animation */
+        }
+
+        .favicon {
+            width: 150px;
+            height: 150px;
+            background-color: #fff;
+            cursor: pointer; /* Pointer cursor to indicate clickable */
+        }
+
+        .site-name {
+            font-size: 16px;
+            color: white;
+            word-wrap: break-word;
+            padding: 5px;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        .delete-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 30px; /* Increased size */
+            height: 30px; /* Increased size */
+            background-image: url('delete.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            cursor: pointer;
+            transition: transform 0.2s ease; /* Smooth scaling */
+        }
+
+        .delete-button:hover {
+            transform: scale(1.2); /* Enlarge button on hover */
+        }
+
+        .hidden {
+            display: none; /* Hides badges after deletion */
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.7); /* Slightly darker background for better contrast */
+            color: white;
+            padding: 5px;
+            border: 1px solid black;
+            font-size: 12px;
+            border-radius: 3px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        .info-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50px;
+            height: 50px;
+            background-image: url('info.jpg');
+            background-size: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease; /* Smooth scaling */
+        }
+
+        .info-icon:hover {
+            transform: scale(1.2); /* Enlarge icon on hover */
+        }
+
+        .popup {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 2px solid black;
+            border-radius: 10px;
+            z-index: 1000; /* Ensures popup is on top */
+        }
+
+        .popup-header {
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: white;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="instructions">Drag sites here! that's... basically the whole game mechanic!</div>
+    <div id="dropZone" ondrop="handleDrop(event)" ondragover="allowDrop(event)"></div>
+
+    <div id="tooltip" class="tooltip"></div> <!-- Tooltip for full URL -->
+
+    <div id="infoIcon" class="info-icon" title="Information About za Site."></div> <!-- Information icon -->
+
+    <div id="popup" class="popup">
+        <div class="popup-header">
+            Site Information
+            <span class="popup-close" onclick="closePopup()">×</span>
+        </div>
+        <div>Site Creator: guest05 on Discord</div>
+        <div>Site Purpose: Created this to work like a bookmark tab lmao</div>
+    </div>
+
+    <script>
+        let tooltip = document.getElementById('tooltip'); // Tooltip element
+        let popup = document.getElementById('popup'); // Popup element
+
+        // Load saved sites from localStorage
+        window.onload = function() {
+            let savedSites = JSON.parse(localStorage.getItem("savedSites")) || [];
+            savedSites.forEach(site => createBadge(site.domain, site.url));
+        };
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            let url = event.dataTransfer.getData("text/plain");
+            if (!url.startsWith("http")) {
+                alert("Invalid URL, did you make sure to drag the 'https://' too?");
+                return;
+            }
+
+            // Extract the domain name from the URL
+            let domain = (new URL(url)).hostname.replace('www.', '');
+
+            // Check if the site is already dragged
+            let savedSites = JSON.parse(localStorage.getItem("savedSites")) || [];
+            if (savedSites.some(site => site.domain === domain)) {
+                alert(`You already dragged ${domain}`);
+                return;
+            }
+
+            createBadge(domain, url);
+            saveSite(domain, url); // Save the site to localStorage
+        }
+
+        // Create a badge for each site
+        function createBadge(domain, url) {
+            let dropZone = document.getElementById('dropZone');
+
+            let badge = document.createElement('div');
+            badge.className = 'site-badge';
+
+            let img = document.createElement('img');
+            img.className = 'favicon';
+            img.src = 'https://www.google.com/s2/favicons?sz=256&domain=' + url; // Higher-quality favicon
+            img.onclick = function() {
+                window.open(url, '_blank'); // Open the URL in a new tab
+            };
+
+            let nameText = document.createElement('div');
+            nameText.className = 'site-name';
+            nameText.textContent = domain;
+
+            let deleteBtn = document.createElement('div');
+            deleteBtn.className = 'delete-button';
+            deleteBtn.onclick = function(event) {
+                if (event.shiftKey) {
+                    // Fast delete (Shift + Click)
+                    badge.remove();
+                    removeSiteFromLocalStorage(domain);
+                } else {
+                    confirmDelete(badge, domain);
+                }
+                event.stopPropagation(); // Prevent triggering badge click
+            };
+
+            badge.appendChild(img);
+            badge.appendChild(nameText);
+            badge.appendChild(deleteBtn);
+            dropZone.appendChild(badge);
+
+            // Show tooltip with full URL on hover
+            badge.onmouseover = function(event) {
+                if (!event.target.classList.contains('delete-button')) {
+                    tooltip.textContent = url;
+                    tooltip.style.opacity = 1;
+                    tooltip.style.left = `${event.pageX + 10}px`;
+                    tooltip.style.top = `${event.pageY + 10}px`;
+                }
+            };
+
+            // Hide tooltip on mouse out
+            badge.onmouseout = function() {
+                tooltip.style.opacity = 0;
+            };
+
+            // Move tooltip with the cursor
+            badge.onmousemove = function(event) {
+                if (!event.target.classList.contains('delete-button')) {
+                    tooltip.style.left = `${event.pageX + 10}px`;
+                    tooltip.style.top = `${event.pageY + 10}px`;
+                }
+            };
+        }
+
+        // Save site info to localStorage
+        function saveSite(domain, url) {
+            let savedSites = JSON.parse(localStorage.getItem("savedSites")) || [];
+            savedSites.push({ domain, url });
+            localStorage.setItem("savedSites", JSON.stringify(savedSites));
+        }
+
+        // Confirm deletion
+        function confirmDelete(badge, domain) {
+            let confirmation = confirm(`Do you wish to Evaporate ${domain}?\n\nFun fact: You can ignore this by Pressing Shift + Click delete on the badge!`);
+
+            if (confirmation) {
+                // Remove from DOM with animation
+                badge.style.opacity = 0;
+                setTimeout(() => {
+                    badge.remove();
+                    removeSiteFromLocalStorage(domain); // Remove from localStorage
+                }, 500); // Wait for fade-out effect
+            }
+        }
+
+        // Remove site from localStorage
+        function removeSiteFromLocalStorage(domain) {
+            let savedSites = JSON.parse(localStorage.getItem("savedSites")) || [];
+            let updatedSites = savedSites.filter(site => site.domain !== domain);
+            localStorage.setItem("savedSites", JSON.stringify(updatedSites));
+        }
+
+        // Show popup
+        document.getElementById('infoIcon').onclick = function() {
+            popup.style.display = 'block';
+        };
+
+        // Close popup
+        function closePopup() {
+            popup.style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>
